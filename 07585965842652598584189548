@@ -1,0 +1,340 @@
+-- [[ SERVICES ROBLOX ]] --
+local TweenService = game:GetService("TweenService")
+local UserInputService = game:GetService("UserInputService")
+local CoreGui = game:GetService("CoreGui")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local Players = game:GetService("Players")
+
+-- [[ CONFIGURATION ]] --
+local UI_NAME = "GodTier_Final_V24"
+local Remotes = ReplicatedStorage:WaitForChild("Remotes")
+local LocalPlayer = Players.LocalPlayer
+
+-- Nettoyage automatique des anciennes versions si elles existent
+if CoreGui:FindFirstChild(UI_NAME) then 
+    CoreGui[UI_NAME]:Destroy() 
+end
+
+local Flags = { SelectedRune = "Basic" } 
+
+-- [[ LIBRAIRIE UI PRO ]] --
+local Library = {}
+
+function Library:CreateWindow(title)
+    local ScreenGui = Instance.new("ScreenGui")
+    ScreenGui.Name = UI_NAME
+    ScreenGui.Parent = CoreGui
+    ScreenGui.ResetOnSpawn = false
+    
+    local Main = Instance.new("Frame")
+    Main.Name = "Main"
+    Main.Size = UDim2.new(0, 580, 0, 420)
+    Main.Position = UDim2.new(0.5, -290, 0.5, -210)
+    Main.BackgroundColor3 = Color3.fromRGB(12, 12, 14)
+    Main.Parent = ScreenGui
+    Main.Visible = true -- Interface visible immédiatement
+    Instance.new("UICorner", Main).CornerRadius = UDim.new(0, 10)
+    
+    -- Système de Drag (Déplacement de la fenêtre)
+    local d, s, p; 
+    Main.InputBegan:Connect(function(i) 
+        if i.UserInputType == Enum.UserInputType.MouseButton1 then 
+            d = true; s = i.Position; p = Main.Position 
+        end 
+    end)
+    UserInputService.InputChanged:Connect(function(i) 
+        if d and i.UserInputType == Enum.UserInputType.MouseMovement then 
+            local delta = i.Position - s
+            Main.Position = UDim2.new(p.X.Scale, p.X.Offset + delta.X, p.Y.Scale, p.Y.Offset + delta.Y) 
+        end 
+    end)
+    UserInputService.InputEnded:Connect(function(i) 
+        if i.UserInputType == Enum.UserInputType.MouseButton1 then d = false end 
+    end)
+
+    local Side = Instance.new("Frame")
+    Side.Size = UDim2.new(0, 150, 1, 0)
+    Side.BackgroundColor3 = Color3.fromRGB(8, 8, 10)
+    Side.Parent = Main
+    Instance.new("UICorner", Side).CornerRadius = UDim.new(0, 10)
+
+    local Title = Instance.new("TextLabel")
+    Title.Size = UDim2.new(1, 0, 0, 50)
+    Title.Text = title
+    Title.TextColor3 = Color3.fromRGB(0, 170, 255)
+    Title.Font = "GothamBold"
+    Title.TextSize = 18
+    Title.BackgroundTransparency = 1
+    Title.Parent = Side
+
+    local TabBtnHolder = Instance.new("Frame")
+    TabBtnHolder.Size = UDim2.new(1, 0, 1, -60)
+    TabBtnHolder.Position = UDim2.new(0, 0, 0, 55)
+    TabBtnHolder.BackgroundTransparency = 1
+    TabBtnHolder.Parent = Side
+    local Layout = Instance.new("UIListLayout", TabBtnHolder)
+    Layout.HorizontalAlignment = "Center"
+    Layout.Padding = UDim.new(0, 5)
+
+    local Container = Instance.new("Frame")
+    Container.Size = UDim2.new(1, -170, 1, -20)
+    Container.Position = UDim2.new(0, 160, 0, 10)
+    Container.BackgroundTransparency = 1
+    Container.Parent = Main
+
+    return ScreenGui, Main, TabBtnHolder, Container
+end
+
+function Library:CreateTab(name, holder, container)
+    local Btn = Instance.new("TextButton")
+    Btn.Size = UDim2.new(0.9, 0, 0, 35)
+    Btn.BackgroundColor3 = Color3.fromRGB(20, 20, 25)
+    Btn.Text = name
+    Btn.TextColor3 = Color3.fromRGB(180, 180, 180)
+    Btn.Font = "GothamSemibold"
+    Btn.Parent = holder
+    Instance.new("UICorner", Btn)
+
+    local Page = Instance.new("ScrollingFrame")
+    Page.Size = UDim2.new(1, 0, 1, 0)
+    Page.BackgroundTransparency = 1
+    Page.Visible = false
+    Page.ScrollBarThickness = 0
+    Page.Parent = container
+    local Layout = Instance.new("UIListLayout", Page)
+    Layout.Padding = UDim.new(0, 8)
+    Layout.HorizontalAlignment = "Center"
+
+    Btn.MouseButton1Click:Connect(function()
+        for _, v in pairs(container:GetChildren()) do 
+            if v:IsA("ScrollingFrame") then v.Visible = false end 
+        end
+        Page.Visible = true
+        for _, b in pairs(holder:GetChildren()) do 
+            if b:IsA("TextButton") then b.TextColor3 = Color3.fromRGB(180, 180, 180) end 
+        end
+        Btn.TextColor3 = Color3.fromRGB(0, 170, 255)
+    end)
+    return Page
+end
+
+function Library:CreateSection(name, parent)
+    local Label = Instance.new("TextLabel")
+    Label.Size = UDim2.new(0.95, 0, 0, 25)
+    Label.Text = "── " .. name:upper() .. " ──"
+    Label.TextColor3 = Color3.fromRGB(80, 80, 90)
+    Label.Font = Enum.Font.GothamBold
+    Label.TextSize = 11
+    Label.BackgroundTransparency = 1
+    Label.Parent = parent
+end
+
+function Library:CreateToggle(name, flag, parent, callback)
+    local Toggle = Instance.new("TextButton")
+    Toggle.Size = UDim2.new(0.95, 0, 0, 40)
+    Toggle.BackgroundColor3 = Color3.fromRGB(20, 20, 24)
+    Toggle.Text = "  " .. name
+    Toggle.TextColor3 = Color3.fromRGB(200, 200, 200)
+    Toggle.Font = "Gotham"
+    Toggle.TextXAlignment = "Left"
+    Toggle.Parent = parent
+    Instance.new("UICorner", Toggle)
+
+    local Ind = Instance.new("Frame")
+    Ind.Size = UDim2.new(0, 30, 0, 15)
+    Ind.Position = UDim2.new(1, -40, 0.5, -7)
+    Ind.BackgroundColor3 = Color3.fromRGB(40, 40, 45)
+    Ind.Parent = Toggle
+    Instance.new("UICorner", Ind).CornerRadius = UDim.new(1, 0)
+
+    local Dot = Instance.new("Frame")
+    Dot.Size = UDim2.new(0, 11, 0, 11)
+    Dot.Position = UDim2.new(0, 2, 0.5, -5)
+    Dot.BackgroundColor3 = Color3.fromRGB(255, 50, 50)
+    Dot.Parent = Ind
+    Instance.new("UICorner", Dot).CornerRadius = UDim.new(1, 0)
+
+    Flags[flag] = false
+    Toggle.MouseButton1Click:Connect(function()
+        Flags[flag] = not Flags[flag]
+        TweenService:Create(Dot, TweenInfo.new(0.2), {
+            Position = Flags[flag] and UDim2.new(0, 17, 0.5, -5) or UDim2.new(0, 2, 0.5, -5), 
+            BackgroundColor3 = Flags[flag] and Color3.fromRGB(50, 255, 100) or Color3.fromRGB(255, 50, 50)
+        }):Play()
+        callback(Flags[flag])
+    end)
+end
+
+function Library:CreateDropdown(name, options, parent, callback)
+    local DropFrame = Instance.new("Frame")
+    DropFrame.Size = UDim2.new(0.95, 0, 0, 40)
+    DropFrame.BackgroundColor3 = Color3.fromRGB(20, 20, 24)
+    DropFrame.Parent = parent
+    Instance.new("UICorner", DropFrame)
+
+    local Label = Instance.new("TextLabel")
+    Label.Size = UDim2.new(1, -10, 1, 0)
+    Label.Position = UDim2.new(0, 10, 0, 0)
+    Label.Text = name .. " : " .. (options[1] or "...")
+    Label.TextColor3 = Color3.fromRGB(200, 200, 200)
+    Label.BackgroundTransparency = 1
+    Label.TextXAlignment = "Left"
+    Label.Parent = DropFrame
+
+    local Btn = Instance.new("TextButton")
+    Btn.Size = UDim2.new(1, 0, 1, 0)
+    Btn.BackgroundTransparency = 1
+    Btn.Text = ""
+    Btn.Parent = DropFrame
+
+    local List = Instance.new("Frame")
+    List.Size = UDim2.new(1, 0, 0, #options * 30)
+    List.Position = UDim2.new(0, 0, 1, 5)
+    List.BackgroundColor3 = Color3.fromRGB(25, 25, 30)
+    List.Visible = false
+    List.ZIndex = 10
+    List.Parent = DropFrame
+    Instance.new("UICorner", List)
+    Instance.new("UIListLayout", List)
+
+    Btn.MouseButton1Click:Connect(function() List.Visible = not List.Visible end)
+
+    for _, opt in pairs(options) do
+        local oBtn = Instance.new("TextButton")
+        oBtn.Size = UDim2.new(1, 0, 0, 30)
+        oBtn.Text = opt
+        oBtn.TextColor3 = Color3.fromRGB(200, 200, 200)
+        oBtn.BackgroundColor3 = Color3.fromRGB(30, 30, 35)
+        oBtn.ZIndex = 11
+        oBtn.Parent = List
+        oBtn.MouseButton1Click:Connect(function() 
+            Label.Text = name .. " : " .. opt
+            List.Visible = false
+            callback(opt) 
+        end)
+    end
+end
+
+-- [[ INITIALISATION UI ]] --
+local Gui, Main, TabHolder, Container = Library:CreateWindow("GOD TIER V24")
+
+-- TABS
+local W1 = Library:CreateTab("World 1", TabHolder, Container)
+local W2 = Library:CreateTab("World 2", TabHolder, Container)
+local RuneTab = Library:CreateTab("Runes", TabHolder, Container)
+local Settings = Library:CreateTab("Settings", TabHolder, Container)
+
+-- [[ WORLD 1 - FARM & UPGRADES ]] --
+Library:CreateSection("Farm", W1)
+Library:CreateToggle("Auto Roll (0.1s)", "roll", W1, function(v) 
+    task.spawn(function() 
+        while Flags.roll do 
+            Remotes.Roll:FireServer()
+            task.wait(0.1) 
+        end 
+    end) 
+end)
+
+Library:CreateSection("Upgrades Coins & PP", W1)
+Library:CreateToggle("Auto Max Roll", "u1", W1, function(v) 
+    task.spawn(function() while Flags.u1 do Remotes.Upgrade:FireServer("Max Roll", "1", "Coins", "Coins"); task.wait(0.01) end end) 
+end)
+Library:CreateToggle("Auto Coin Multi", "u2", W1, function(v) 
+    task.spawn(function() while Flags.u2 do Remotes.Upgrade:FireServer("Coin Multi", "1", "Coins", "Coins"); task.wait(0.01) end end) 
+end)
+Library:CreateToggle("Auto Prestige Buy", "u3", W1, function(v)
+    task.spawn(function()
+        local p = {{"Walkspeed","PP"},{"Extra Dice","PP"},{"Min Roll","PP"},{"Max Roll II","PP"},{"PP XP Multi","PP"},{"Coin Multi II","PP"}}
+        while Flags.u3 do
+            for _, i in pairs(p) do 
+                if not Flags.u3 then break end
+                Remotes.Upgrade:FireServer(i[1], "1", i[2], "Prestige Points") 
+            end
+            task.wait(0.01)
+        end
+    end)
+end)
+
+Library:CreateSection("Upgrades Ascension & Trans", W1)
+Library:CreateToggle("Auto Ascension Buy", "u_ap", W1, function(v)
+    task.spawn(function()
+        local a = {"Extra Dice II", "Min Roll II", "Max Roll III", "XP Multi", "PP Multi", "Coin Multi III"}
+        while Flags.u_ap do
+            for _, i in pairs(a) do 
+                if not Flags.u_ap then break end
+                Remotes.Upgrade:FireServer(i, "1", "AP", "Ascension Points") 
+            end
+            task.wait(0.01)
+        end
+    end)
+end)
+Library:CreateToggle("Auto Transcension Buy", "u_tp", W1, function(v)
+    task.spawn(function()
+        local t = {"Rune Speed", "Rune Bulk", "Rune Luck", "Extra Dice III", "Min Roll III", "Max Roll IV", "AP Multi", "Coin Multi IV"}
+        while Flags.u_tp do
+            for _, i in pairs(t) do 
+                if not Flags.u_tp then break end
+                Remotes.Upgrade:FireServer(i, "1", "TP", "Transcension Points") 
+            end
+            task.wait(0.01)
+        end
+    end)
+end)
+
+-- [[ WORLD 2 - ENERGY ]] --
+Library:CreateSection("Energy System", W2)
+Library:CreateToggle("Auto Collect Energy", "auto_energy", W2, function(v)
+    task.spawn(function()
+        local lastTarget = nil
+        while Flags.auto_energy do
+            pcall(function()
+                local target = workspace.Energy:FindFirstChild("Energy Pad"):FindFirstChild("Hitbox")
+                if target then
+                    lastTarget = target
+                    firetouchinterest(LocalPlayer.Character.HumanoidRootPart, target, 0)
+                end
+            end)
+            task.wait(0.1)
+        end
+        if lastTarget then firetouchinterest(LocalPlayer.Character.HumanoidRootPart, lastTarget, 1) end
+    end)
+end)
+
+-- [[ RUNES ]] --
+Library:CreateSection("Runes Settings", RuneTab)
+Library:CreateDropdown("Choisir Rune", {"Basic", "Roller", "250K", "Ancient", "Celebration", "Qualities"}, RuneTab, function(s) Flags.SelectedRune = s end)
+
+Library:CreateToggle("Auto Rune Open", "auto_rune", RuneTab, function(v)
+    task.spawn(function()
+        local lastTarget = nil
+        while Flags.auto_rune do
+            pcall(function()
+                local runeFolder = workspace.Runes:FindFirstChild(Flags.SelectedRune)
+                local target = runeFolder and (runeFolder:FindFirstChild("Hitbox") or runeFolder:FindFirstChild("Base"))
+                if target then
+                    lastTarget = target
+                    firetouchinterest(LocalPlayer.Character.HumanoidRootPart, target, 0)
+                end
+            end)
+            task.wait(0.1)
+        end
+        if lastTarget then firetouchinterest(LocalPlayer.Character.HumanoidRootPart, lastTarget, 1) end
+    end)
+end)
+
+-- [[ SETTINGS ]] --
+Library:CreateSection("Options", Settings)
+local Dest = Instance.new("TextButton", Settings)
+Dest.Size = UDim2.new(0.9, 0, 0, 40)
+Dest.Text = "DESTROY GUI"
+Dest.BackgroundColor3 = Color3.fromRGB(150,0,0)
+Dest.TextColor3 = Color3.fromRGB(255,255,255)
+Instance.new("UICorner", Dest)
+
+Dest.MouseButton1Click:Connect(function() 
+    for i,v in pairs(Flags) do Flags[i] = false end
+    Gui:Destroy() 
+end)
+
+-- Affichage par défaut de l'onglet World 1
+W1.Visible = true
